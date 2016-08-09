@@ -28,11 +28,8 @@ int main ()
 #endif
     auto t2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> tms = t2 - t1;
-    std::cout << "Min: " << list[0] << ", Max: " << list[sz-1] << ", Mid: " << list[sz/2] << std::endl;
+    std::cout << "Min: " << list[0] << ", Max: " << list[sz-1] << std::endl;
     std::cout << "Sorted in " << tms.count()/1000.0 << " sec." << std::endl;
-    for ( unsigned i = 0; i < sz; i++ ) {
-        printf( "val[%u] = %g\n", i, list[i] );
-    }
     delete[] list;
     return 0;
 }
