@@ -96,9 +96,13 @@ template <typename T> void parasort(size_t sz, T* list, unsigned np = 2, unsigne
     std::vector<T> sample(nSample);
     std::vector<size_t> tmp(nMap, 0), map(nMap, 0), bucket(nMap, 0);
     std::vector<std::thread> threads(np);
+// Step 1: Pick np*sf random elements from the input array.
+// We use these elements to split the array into even partitions.
     for (unsigned i = 0; i < nSample; i++) sample[i] = list[rand()%sz];
     _sort(nSample, &sample[0]);
     for (unsigned i = 0; i < np-1; i++) range[i] = sample[(i+1)*sf];
+// Step 2: Count how many elements go into each bucket.
+// This is done in parallel
     unsigned part = sz / np;
     for (unsigned i = 0; i < np; i++) {
         size_t start = i * part;
@@ -106,9 +110,12 @@ template <typename T> void parasort(size_t sz, T* list, unsigned np = 2, unsigne
         threads[i] = std::thread( _count<T>, length, &list[start], np, &range[0], &bucket[i*np] );
     }
     for (auto&& thread : threads) thread.join();
+// Step 3: Create a mapping scheme to separate partitions.
+// Since the number of operations is small, we do this step in serial.
     for (unsigned i = 0; i < nMap; i++) tmp[i] = i ? tmp[i-1] + bucket[((i-1)%np)*np+(i-1)/np] : 0;
     for (unsigned i = 0; i < nMap; i++) map[i] = tmp[(i%np)*np+i/np];
     for (unsigned i = 0; i < nMap; i++) tmp[i] = map[i];
+// Step 4: Map the input array into np separate partitions.    
     std::vector<T> sorted(sz);
     for (unsigned i = 0; i < np; i++) {
         size_t start = i * part;
@@ -116,12 +123,14 @@ template <typename T> void parasort(size_t sz, T* list, unsigned np = 2, unsigne
         threads[i] = std::thread( _reorder<T>, length, &list[start], np, &range[0], &tmp[i*np], &sorted[0] );
     }
     for (auto&& thread : threads) thread.join();
+// Step 5: Sort each partition in a separate thread.    
     for (unsigned i = 0; i < np; i++) {
         size_t start = map[i];
         size_t length = (i+1 == np) ? sz - map[i] : map[i+1] - map[i];
         threads[i] = std::thread( _sort<T>, length, &sorted[start] );
     }
     for (auto&& thread : threads) thread.join();
+// Step 6: Copy the temporary container for the sorted array into the input array.    
     std::memcpy(list, &sorted[0], sz * sizeof(T) );
 }
 
